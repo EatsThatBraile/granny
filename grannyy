@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <meta charset="utf-8">
+  <meta name="robots" content="noindex, nofollow">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>Granny Original</title>
+
+  <!-- External Game SDK -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/bubbls/granny@212c543a85b243c4a0b92211f557e760d83d2292/TemplateData/style.css">
+  <script src="https://cdn.jsdelivr.net/gh/bubbls/granny@212c543a85b243c4a0b92211f557e760d83d2292/sdk.js"></script>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: linear-gradient(135deg, #000000 0%, #121212 100%);
+      font-family: 'Poppins', sans-serif;
+      color: white;
+    }
+
+    #unity-container {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      left: 0;
+      top: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #unity-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      border: none;
+    }
+
+    /* Loading overlay */
+    #unity-loading-bar {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 320px;
+      height: 18px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+
+    #unity-progress-bar-full {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #4caf50, #81c784);
+      border-radius: 10px;
+      transition: width 0.3s ease;
+      box-shadow: 0 0 15px rgba(76,175,80,0.6);
+    }
+
+    #unity-logo {
+      text-align: center;
+      margin-bottom: 40px;
+      font-size: 24px;
+      font-weight: 500;
+      letter-spacing: 1px;
+      color: #d0ffd0;
+      text-shadow: 0 0 10px rgba(76,175,80,0.7);
+    }
+
+    /* Fullscreen button */
+    #fullscreen-btn {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 12px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-size: 14px;
+      backdrop-filter: blur(8px);
+      transition: 0.3s ease;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #fullscreen-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(1.05);
+    }
+
+    #fullscreen-btn.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    #unity-warning {
+      position: absolute;
+      top: 10%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255,255,255,0.9);
+      color: #000;
+      padding: 10px;
+      border-radius: 6px;
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="unity-container">
+    <canvas id="unity-canvas"></canvas>
+    <div id="unity-loading-bar">
+      <div id="unity-progress-bar-full"></div>
+    </div>
+    <div id="unity-warning"></div>
+    <button id="fullscreen-btn">⛶ Fullscreen</button>
+  </div>
+
+  <script>
+    // GameMonetize SDK integration
+    window.SDK_OPTIONS = {
+      gameId: "jp112o3o4hzgrnc7zaewjkrfk282pul8",
+      onEvent: function (a) {
+        switch (a.name) {
+          case "SDK_GAME_PAUSE":
+            if (myGameInstance) myGameInstance.SendMessage('AudioManager', 'MuteAudio');
+            break;
+          case "SDK_GAME_START":
+            if (myGameInstance) myGameInstance.SendMessage('AudioManager', 'UnmuteAudio');
+            break;
+        }
+      }
+    };
+    (function (a, b, c) {
+      var d = a.getElementsByTagName(b)[0];
+      a.getElementById(c) || (a = a.createElement(b), a.id = c, a.src = "https://cdn.jsdelivr.net/gh/testamalame/sef@main/sedk.js", d.parentNode.insertBefore(a, d));
+    })(document, "script", "gamemonetize-sdk");
+
+    // Unity setup
+    const buildUrl = "https://cdn.jsdelivr.net/gh/gru6nny/ohd@main/Build";
+    const loaderUrl = buildUrl + "/Granny.loader.js";
+    const canvas = document.querySelector("#unity-canvas");
+    const loadingBar = document.querySelector("#unity-loading-bar");
+    const progressBarFull = document.querySelector("#unity-progress-bar-full");
+    const fullscreenBtn = document.querySelector("#fullscreen-btn");
+    let myGameInstance = null;
+
+    async function mergeUnityWebFiles(baseUrl, filePrefix, totalParts, extension) {
+      const buffers = [];
+      for (let i = 1; i <= totalParts; i++) {
+        const response = await fetch(`${baseUrl}/${filePrefix}_part${i}.${extension}`);
+        const buffer = await response.arrayBuffer();
+        buffers.push(buffer);
+        progressBarFull.style.width = `${(i / totalParts) * 100}%`;
+      }
+      const totalLength = buffers.reduce((acc, b) => acc + b.byteLength, 0);
+      const combinedBuffer = new Uint8Array(totalLength);
+      let offset = 0;
+      buffers.forEach(buffer => {
+        combinedBuffer.set(new Uint8Array(buffer), offset);
+        offset += buffer.byteLength;
+      });
+      return combinedBuffer;
+    }
+
+    async function initializeGame() {
+      try {
+        const dataBuffer = await mergeUnityWebFiles(buildUrl, "Granny", 2, "data");
+        const wasmBuffer = await mergeUnityWebFiles(buildUrl, "Granny", 2, "wasm");
+
+        const dataBlobUrl = URL.createObjectURL(new Blob([dataBuffer]));
+        const wasmBlobUrl = URL.createObjectURL(new Blob([wasmBuffer]));
+
+        const config = {
+          dataUrl: dataBlobUrl,
+          frameworkUrl: buildUrl + "/Granny.framework.js",
+          codeUrl: wasmBlobUrl,
+          streamingAssetsUrl: buildUrl + "/StreamingAssets",
+          companyName: "Anastasia Kazantseva",
+          productName: "Granny",
+          productVersion: "1.0",
+        };
+
+        const script = document.createElement("script");
+        script.src = loaderUrl;
+        script.onload = () => {
+          createUnityInstance(canvas, config, (progress) => {
+            progressBarFull.style.width = `${progress * 100}%`;
+          }).then((instance) => {
+            myGameInstance = instance;
+            loadingBar.style.display = "none";
+            fullscreenBtn.classList.add("visible");
+          });
+        };
+        document.body.appendChild(script);
+      } catch (e) {
+        console.error("Game load error:", e);
+      }
+    }
+
+    initializeGame();
+
+    // Fullscreen toggle
+    fullscreenBtn.addEventListener("click", () => {
+      if (!document.fullscreenElement) {
+        canvas.requestFullscreen().catch(err => console.error(err));
+      } else {
+        document.exitFullscreen();
+      }
+    });
+  </script>
+</body>
+</html>
