@@ -233,5 +233,14 @@
 
         initializeGame();
     </script>
+    <script>
+document.addEventListener("DOMContentLoaded", () => {
+  // Try to open fullscreen when the tab opens
+  const elem = document.documentElement;
+  if (elem.requestFullscreen) elem.requestFullscreen();
+  else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+  else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
+});
+</script>
 </body>
 </html>
